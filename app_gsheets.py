@@ -5,6 +5,7 @@
 #  - ค้นหาได้จาก: หมายเลขสัญญา/ชื่อร้าน/ผู้ติดต่อ/เบอร์ (แม้เก็บเบอร์แบบตัวเลข/มีขีด/ช่องว่าง/ศูนย์หาย)
 #  - หน้า "ค้นหา" ติ๊กยกเลิก/คืนค่า สัญญาได้ แล้วกดบันทึกการเปลี่ยนแปลง
 #  - หน้า "ข้อมูลทั้งหมด" แสดงทุกสัญญา รวมถึงที่ยกเลิก พร้อมแสดง contract_no เป็นคอลัมน์แรก
+#  - เบอร์โทรในตารางจะแสดงเลข 0 นำหน้าให้เอง (ถ้าชีตเก็บเป็นตัวเลขจนศูนย์หาย)
 #  - ดาวน์โหลด Excel/CSV
 # หมายเหตุ: ปุ่มดาวน์โหลด Excel ใช้ engine=xlsxwriter ⇒ เพิ่ม "xlsxwriter" ใน requirements.txt
 
@@ -244,6 +245,20 @@ def next_contract_no(df: pd.DataFrame, start: date) -> str:
     next_seq = (max(seqs) + 1) if seqs else 1
     return f"{yyyymm}-{next_seq:03d}"
 
+# ---------- helper: แสดงเบอร์โทรให้มี 0 นำหน้าเมื่อเหมาะสม ----------
+def _format_phone_display(value: str) -> str:
+    """คืนสตริงตัวเลขล้วน และถ้ายาว 9 หลัก (มักเป็นเคสศูนย์หาย) จะเติม 0 ด้านหน้า"""
+    s = "" if value is None or (isinstance(value, float) and pd.isna(value)) else str(value)
+    digits = re.sub(r"\D+", "", s)
+    if not digits:
+        return ""
+    if len(digits) == 9 and not digits.startswith("0"):
+        digits = "0" + digits
+    return digits
+
+def _format_phone_series_for_display(series: pd.Series) -> pd.Series:
+    return series.astype("string").map(_format_phone_display)
+
 # --------------------------- UI ----------------------------
 st.set_page_config(page_title="สัญญาร้านเช่า - Google Sheets", page_icon="📑", layout="wide")
 st.title("📑 ระบบจัดการสัญญาร้านเช่า (บันทึกลง Google Sheets)")
@@ -328,9 +343,11 @@ elif page.startswith("🔎"):
         end=end if end else None,
     ) if within_days or start or end else df_q.copy()
 
-    # สถานะ
+    # สถานะ + format เบอร์โทรสำหรับแสดง
     df_f["days_left"] = df_f["end_date"].apply(lambda d: days_until(d) if pd.notna(d) else None)
     df_f["สถานะ"] = df_f.apply(lambda r: style_status(r["days_left"], r["cancelled"]), axis=1)
+    df_f_disp = df_f.copy()
+    df_f_disp["phone"] = _format_phone_series_for_display(df_f_disp["phone"])
 
     # สรุปแจ้งเตือนจากข้อมูลทั้งหมด (ไม่นับใบที่ยกเลิก)
     df_30 = filter_by_expiry_window(_df, within_days=30)
@@ -343,12 +360,12 @@ elif page.startswith("🔎"):
         st.success("ยังไม่มีสัญญาที่จะหมดภายใน 30 วัน")
 
     st.markdown("### ผลการค้นหา / ปรับสถานะ")
-    if df_f.empty:
+    if df_f_disp.empty:
         st.info("ไม่พบข้อมูลตามเงื่อนไข")
     else:
         show_cols = ["id","contract_no","shop_name","contact_name","phone","start_date","months","end_date","cancelled","สถานะ"]
         edited = st.data_editor(
-            df_f[show_cols],
+            df_f_disp[show_cols],
             use_container_width=True,
             hide_index=True,
             column_config={
@@ -396,6 +413,8 @@ else:
         dfv = _df.copy()
         dfv["days_left"] = dfv["end_date"].apply(lambda d: days_until(d) if pd.notna(d) else None)
         dfv["สถานะ"] = dfv.apply(lambda r: style_status(r["days_left"], r["cancelled"]), axis=1)
+        # แสดงเบอร์โทรเติม 0 ถ้าหาย
+        dfv["phone"] = _format_phone_series_for_display(dfv["phone"])
 
         # จัดลำดับให้แสดงหมายเลขสัญญาเป็นคอลัมน์แรกแน่นอน
         display_cols = [
