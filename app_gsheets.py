@@ -384,4 +384,3 @@ else:
             dfv[["id","contract_no","shop_name","contact_name","phone","start_date","months","end_date","cancelled","สถานะ"]],
             use_container_width=True,
         )
-
