@@ -1,4 +1,6 @@
 streamlit
 pandas
-openpyxl
 python-dateutil
+gspread
+gspread-dataframe
+xlsxwriter
