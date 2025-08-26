@@ -320,9 +320,9 @@ elif page.startswith("🔎"):
     df_30 = filter_by_expiry_window(_df, within_days=30)
     df_15 = filter_by_expiry_window(_df, within_days=15)
     if not df_15.empty:
-        st.error(f"มี {len[df_15]} สัญญาใกล้หมดภายใน 15 วัน")
+        st.error(f"มี {len(df_15)} สัญญาใกล้หมดภายใน 15 วัน")
     elif not df_30.empty:
-        st.warning(f"มี {len(df_30]} สัญญาจะหมดภายใน 30 วัน")
+        st.warning(f"มี {len(df_30)} สัญญาจะหมดภายใน 30 วัน")
     else:
         st.success("ยังไม่มีสัญญาที่จะหมดภายใน 30 วัน")
 
@@ -384,3 +384,4 @@ else:
             dfv[["id","contract_no","shop_name","contact_name","phone","start_date","months","end_date","cancelled","สถานะ"]],
             use_container_width=True,
         )
+
